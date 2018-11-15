@@ -303,7 +303,6 @@ object Http4sConsulTests {
   ]
   """
 
-
   val healthNodesForServiceReplyJson = """
   [
       {
@@ -363,6 +362,35 @@ object Http4sConsulTests {
                   "anotherTag"
               ]
           }
+      },
+      {
+          "Checks": [],
+          "Node": {
+              "Address": "192.168.1.146",
+              "CreateIndex": 123455121311,
+              "Datacenter": "dc1",
+              "ID": "aaaaaaaa-a220-4f92-57dc-7baaabdc3823",
+              "Meta": null,
+              "ModifyIndex": 123455121347,
+              "Node": "localhost",
+              "TaggedAddresses": {
+                  "lan": "192.168.1.146",
+                  "wan": "192.168.2.146"
+              }
+          },
+          "Service": {
+              "Address": "127.0.0.1",
+              "CreateIndex": 123455121302,
+              "EnableTagOverride": false,
+              "ID": "test",
+              "ModifyIndex": 123455121323,
+              "Port": 1235,
+              "Service": "testService",
+              "Tags": [
+                  "testTag",
+                  "anotherTag"
+              ]
+          }
       }
   ]
   """
@@ -409,7 +437,7 @@ object Http4sConsulTests {
             "localhost",
             "192.168.1.145",
             "dc1",
-            Map("metaTest" -> "test123"),
+            Some(Map("metaTest" -> "test123")),
             TaggedAddresses("192.168.1.145", "192.168.2.145"),
             123455121311L,
             123455121347L
@@ -451,6 +479,30 @@ object Http4sConsulTests {
               123455121300L,
               123455121321L)
           )
+        ),
+        HealthNodesForServiceResponse(
+          NodeResponse(
+            "aaaaaaaa-a220-4f92-57dc-7baaabdc3823",
+            "localhost",
+            "192.168.1.146",
+            "dc1",
+            None,
+            TaggedAddresses("192.168.1.146", "192.168.2.146"),
+            123455121311L,
+            123455121347L
+          ),
+          ServiceResponse(
+            "testService",
+            "test",
+            List("testTag",
+            "anotherTag"),
+            "127.0.0.1",
+            1235,
+            false,
+            123455121302L,
+            123455121323L
+          ),
+          List.empty
         )
       ),
       1234,
