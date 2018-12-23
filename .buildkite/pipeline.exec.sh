@@ -11,7 +11,7 @@ git config --global user.name "Nelson Team"
 # subvert the sbt-rig plugin
 export TRAVIS="true" # way hacky
 export TRAVIS_COMMIT="$BUILDKITE_COMMIT"
-export TRAVIS_REPO_SLUG="getnelson/knobs"
+export TRAVIS_REPO_SLUG="getnelson/helm"
 export TRAVIS_JOB_NUMBER="1.1"
 export TRAVIS_BUILD_NUMBER="$BUILDKITE_BUILD_NUMBER"
 
