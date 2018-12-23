@@ -1,5 +1,4 @@
-
-organization in Global := "io.verizon.helm"
+organization in Global := "io.getnelson.helm"
 
 crossScalaVersions in Global := Seq("2.12.4", "2.11.12")
 
