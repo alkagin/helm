@@ -26,7 +26,7 @@ object CentralRequirementsPlugin extends AutoPlugin {
   override def requires = RigPlugin
 
   override lazy val projectSettings = Seq(
-    sonatypeProfileName := "io.verizon",
+    sonatypeProfileName := "io.getnelson",
     pomExtra in Global := {
       <developers>
         <developer>
@@ -52,8 +52,8 @@ object CentralRequirementsPlugin extends AutoPlugin {
       </developers>
     },
     licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html")),
-    homepage := Some(url("http://verizon.github.io/helm/")),
-    scmInfo := Some(ScmInfo(url("https://github.com/verizon/helm"),
-                                "git@github.com:verizon/helm.git"))
+    homepage := Some(url("http://getnelson.github.io/helm/")),
+    scmInfo := Some(ScmInfo(url("https://github.com/getnelson/helm"),
+                                "git@github.com:getnelson/helm.git"))
   )
 }

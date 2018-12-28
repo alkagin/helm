@@ -2,9 +2,9 @@
 
 ![Logo](docs/src/img/logo.png)
 
-[![Build Status](https://travis-ci.org/Verizon/helm.svg?branch=master)](https://travis-ci.org/Verizon/helm)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.verizon.helm/core_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.verizon.helm/core_2.11)
-[![codecov](https://codecov.io/gh/Verizon/helm/branch/master/graph/badge.svg)](https://codecov.io/gh/Verizon/helm)
+[![Build Status](https://travis-ci.org/getnelson/helm.svg?branch=master)](https://travis-ci.org/getnelson/helm)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.getnelson.helm/core_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.getnelson.helm/core_2.11)
+[![codecov](https://codecov.io/gh/getnelson/helm/branch/master/graph/badge.svg)](https://codecov.io/gh/getnelson/helm)
 
 A native [Scala](http://scala-lang.org) client for interacting with [Consul](https://www.consul.io/). There is currently one supported client, which uses [http4s](http://http4s.org) to make HTTP calls to Consul. Alternative implementations could be added with relative ease by providing an additional free interpreter for the `ConsulOp` algebra.
 
@@ -12,9 +12,9 @@ A native [Scala](http://scala-lang.org) client for interacting with [Consul](htt
 
 Add the following to your `build.sbt`:
 
-    libraryDependencies += "io.verizon.helm" %% "http4s" % "1.4.78-scalaz-7.1"
+    libraryDependencies += "io.getnelson.helm" %% "http4s" % "x.y.z"
 
-The *Helm* binaries are located on maven central, so no additional resolvers are needed.
+Where `x.y.z` is the desired Helm version. Check for the latest release [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.getnelson.helm%22).
 
 ### Algebra
 
