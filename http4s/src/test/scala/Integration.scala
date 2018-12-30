@@ -32,7 +32,7 @@ trait DefaultDockerKit extends DockerKit {
       if (parts.length == 3)
         Some(parts(1).substring(2))
       else None
-    }.getOrElse("127.0.0.1")
+    }.getOrElse("unix:///var/run/docker.sock")
   }
 }
 
