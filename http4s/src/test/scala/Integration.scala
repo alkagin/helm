@@ -2,13 +2,11 @@ package helm
 package http4s
 
 import scala.concurrent.duration.DurationInt
-
 import cats.effect.IO
 import cats.implicits._
-import com.github.dockerjava.core.DefaultDockerClientConfig
-import com.github.dockerjava.netty.NettyDockerCmdExecFactory
+import com.spotify.docker.client.{DefaultDockerClient, DockerClient}
 import com.whisk.docker._
-import com.whisk.docker.impl.dockerjava.{Docker, DockerJavaExecutorFactory}
+import com.whisk.docker.impl.spotify.SpotifyDockerFactory
 import com.whisk.docker.scalatest._
 import journal.Logger
 import org.http4s._
@@ -18,30 +16,11 @@ import org.scalatest._
 import org.scalatest.enablers.CheckerAsserting
 import org.scalatest.prop._
 
-// This is how we use docker-kit.  Nothing specific to helm in this trait.
-trait DefaultDockerKit extends DockerKit {
-  override implicit val dockerFactory: DockerFactory = new DockerJavaExecutorFactory(
-    new Docker(DefaultDockerClientConfig.createDefaultConfigBuilder().build(),
-      factory = new NettyDockerCmdExecFactory()))
-
-  /** Get the docker host from the DOCKER_HOST environment variable, or 127.0.0.1 if undefined */
-  lazy val dockerHost: String = {
-    // i'm expecting protocol://ip:port
-    sys.env.get("DOCKER_HOST").flatMap { url =>
-      val parts = url.split(":")
-      if (parts.length == 3)
-        Some(parts(1).substring(2))
-      else None
-    }.getOrElse("unix:///var/run/docker.sock")
-  }
-}
-
-trait DockerConsulService extends DefaultDockerKit {
+trait DockerConsulService extends DockerKit {
   private[this] val logger = Logger[DockerConsulService]
 
-  override implicit val dockerFactory: DockerFactory = new DockerJavaExecutorFactory(
-    new Docker(DefaultDockerClientConfig.createDefaultConfigBuilder().build(),
-      factory = new NettyDockerCmdExecFactory()))
+  private val client: DockerClient = DefaultDockerClient.fromEnv().build()
+  override implicit val dockerFactory: DockerFactory = new SpotifyDockerFactory(client)
 
   val ConsulPort = 18512
 
@@ -49,7 +28,9 @@ trait DockerConsulService extends DefaultDockerKit {
     DockerContainer("consul:0.7.0", name = Some("consul"))
       .withPorts(8500 -> Some(ConsulPort))
       .withLogLineReceiver(LogLineReceiver(true, s => logger.debug(s"consul: $s")))
-      .withReadyChecker(DockerReadyChecker.LogLineContains("agent: Synced"))
+      .withReadyChecker(DockerReadyChecker
+        .HttpResponseCode(8500, "/v1/status/leader")
+        .looped(12, 10.seconds))
 
   abstract override def dockerContainers: List[DockerContainer] =
     consulContainer :: super.dockerContainers
@@ -65,7 +46,7 @@ class IntegrationSpec
   val client = Http1Client[IO]().unsafeRunSync
 
   val baseUrl: Uri =
-    Uri.fromString(s"http://${dockerHost}:${ConsulPort}").valueOr(throw _)
+    Uri.fromString(s"http://${dockerExecutor.host}:${ConsulPort}").valueOr(throw _)
 
   val interpreter = new Http4sConsulClient(baseUrl, client)
 
