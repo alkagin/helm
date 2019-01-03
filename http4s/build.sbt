@@ -11,7 +11,7 @@ libraryDependencies ++= Seq(
   http4sOrg            %% "http4s-blaze-client"             % http4sVersion,
   http4sOrg            %% "http4s-argonaut"                 % http4sVersion,
   "com.whisk"          %% "docker-testkit-scalatest"        % dockeritVersion % "test",
-  "com.whisk"          %% "docker-testkit-impl-docker-java" % dockeritVersion % "test"
+  "com.whisk"          %% "docker-testkit-impl-spotify"     % dockeritVersion % "test"
 )
 
 (initialCommands in console) := """
