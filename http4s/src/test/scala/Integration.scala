@@ -28,7 +28,7 @@ trait DockerConsulService extends DockerKit {
     DockerContainer("consul:0.7.0", name = Some("consul"))
       .withPorts(8500 -> Some(ConsulPort))
       .withLogLineReceiver(LogLineReceiver(true, s => logger.debug(s"consul: $s")))
-      .withCommand("agent", "-dev")
+      .withCommand("agent", "-dev", "-client", "0.0.0.0")
       .withReadyChecker(DockerReadyChecker
         .HttpResponseCode(8500, "/v1/status/leader")
         .looped(12, 10.seconds))
@@ -43,6 +43,8 @@ class IntegrationSpec
     with Checkers
     with BeforeAndAfterAll
     with DockerConsulService with DockerTestKit {
+
+  override val StartContainersTimeout = 5.minutes
 
   val client = Http1Client[IO]().unsafeRunSync
 
