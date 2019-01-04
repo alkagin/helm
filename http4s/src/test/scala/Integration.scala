@@ -44,8 +44,6 @@ class IntegrationSpec
     with BeforeAndAfterAll
     with DockerConsulService with DockerTestKit {
 
-  override val StartContainersTimeout = 5.minutes
-
   val client = Http1Client[IO]().unsafeRunSync
 
   val baseUrl: Uri =
