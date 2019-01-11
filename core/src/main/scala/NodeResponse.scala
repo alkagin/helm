@@ -8,7 +8,7 @@ final case class NodeResponse(
   node:            String,
   address:         String,
   datacenter:      String,
-  meta:            Map[String, String],
+  meta:            Option[Map[String, String]],
   taggedAddresses: TaggedAddresses,
   createIndex:     Long,
   modifyIndex:     Long
@@ -22,7 +22,7 @@ object NodeResponse {
         node            <- (j --\ "Node").as[String]
         address         <- (j --\ "Address").as[String]
         datacenter      <- (j --\ "Datacenter").as[String]
-        meta            <- (j --\ "Meta").as[Map[String, String]]
+        meta            <- (j --\ "Meta").as[Option[Map[String, String]]]
         taggedAddresses <- (j --\ "TaggedAddresses").as[TaggedAddresses]
         createIndex     <- (j --\ "CreateIndex").as[Long]
         modifyIndex     <- (j --\ "ModifyIndex").as[Long]
