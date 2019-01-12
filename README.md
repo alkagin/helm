@@ -22,12 +22,16 @@ Consul operations are specified by the `ConsulOp` algebra.  Two
 examples are `get` and `set`:
 
 ```
-import helm._
 import ConsulOp.ConsulOpF
 
-val s: ConsulOpF[Unit] = : ConsulOp.kvSet("key", "value")
+val setAlgebra: ConsulOpF[Unit] = ConsulOp.kvSet(key = "testKey", value = "testValue".getBytes)
 
-val g: ConsulOpF[Option[String]] = : ConsulOp.kvGet("key")
+val getAlgebra: ConsulOpF[QueryResponse[List[KVGetResult]]] = ConsulOp.kvGet(key = "testKey",
+                                                                             recurse = Some(false),
+                                                                             datacenter = None,
+                                                                             separator = None,
+                                                                             index = None,
+                                                                             maxWait = None)
 ```
 
 These are however just descriptions of what operations the program might perform in the future, just creating these operations does not
@@ -54,15 +58,17 @@ Now we can apply commands to our http4s client to get back IOs
 which actually interact with consul.
 
 ```
+import helm._
 import cats.effect.IO
 
-val s: IO[Unit] = helm.run(interpreter, ConsulOp.kvSet("testkey", "testvalue"))
 
-val g: IO[Option[String]] = helm.run(interpreter, ConsulOp.kvGet("testkey"))
+val set: IO[Unit]                             = helm.run(interpreter, setAlgebra)
+val get: IO[QueryResponse[List[KVGetResult]]] = helm.run(interpreter, getAlgebra)
 
 // actually execute the calls
-s.unsafeRunSync
-g.unsafeRunSync
+val setResult: Unit =                             set.unsafeRunSync()
+val getResult: QueryResponse[List[KVGetResult]] = get.unsafeRunSync()
+
 ```
 
 Typically, the *Helm* algebra would be a part of a `Coproduct` with other algebras in a larger program, so running the `IO` immediately after `helm.run` is not typical.
