@@ -3,8 +3,11 @@ val http4sOrg = "org.http4s"
 val http4sVersion = "0.18.11"
 val dockeritVersion = "0.9.8"
 
-scalaTestVersion  := "3.0.1"
-scalaCheckVersion := "1.13.4"
+enablePlugins(ScalaTestPlugin, ScalaCheckPlugin)
+
+scalaTestVersion := "3.0.5"
+
+scalaCheckVersion := "1.13.5"
 
 libraryDependencies ++= Seq(
   "io.verizon.journal" %% "core"                            % "3.0.18",

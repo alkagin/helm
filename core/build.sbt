@@ -6,3 +6,9 @@ libraryDependencies ++= Seq(
 )
 
 addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.5" cross CrossVersion.binary)
+
+enablePlugins(ScalaTestPlugin, ScalaCheckPlugin)
+
+scalaTestVersion := "3.0.5"
+
+scalaCheckVersion := "1.13.5"
