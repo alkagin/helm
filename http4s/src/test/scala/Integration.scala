@@ -30,7 +30,7 @@ trait DockerConsulService extends DockerKit {
       .withLogLineReceiver(LogLineReceiver(true, s => logger.debug(s"consul: $s")))
       .withCommand("agent", "-dev", "-client", "0.0.0.0")
       .withReadyChecker(DockerReadyChecker
-        .HttpResponseCode(8500, "/v1/status/leader")
+        .HttpResponseCode(8500, "/v1/kv/test", None, 404) // Returns 500 status until elected leader
         .looped(12, 10.seconds))
 
   abstract override def dockerContainers: List[DockerContainer] =
