@@ -14,7 +14,8 @@ import org.http4s._
 import org.http4s.argonaut._
 import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.headers.Authorization
+import org.http4s.headers.{Authorization, Connection}
+import org.http4s.util.CaseInsensitiveString
 import org.http4s.Status.Successful
 import org.http4s.syntax.string.http4sStringSyntax
 
@@ -65,6 +66,12 @@ final class Http4sConsulClient[F[_]](
 
   private def addCreds(req: Request[F]): Request[F] =
     credentials.fold(req){case (un,pw) => req.putHeaders(Authorization(BasicCredentials(un,pw)))}
+
+  private def addKeepAlive(req: Request[F]): Request[F] =
+    req.putHeaders(Connection(NonEmptyList.of(CaseInsensitiveString("keep-alive"))))
+
+  private val addHeaders: Request[F] => Request[F] =
+    addConsulToken _ andThen addCreds _ andThen addKeepAlive _
 
   /** A nice place to store the Consul response headers so we can pass them around */
   private case class ConsulHeaders(
@@ -120,7 +127,7 @@ final class Http4sConsulClient[F[_]](
   ): F[QueryResponse[List[KVGetResult]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching consul key $key"))
-      req = addCreds(addConsulToken(
+      req = addHeaders(
         Request(
           uri =
             (baseUri / "v1" / "kv" / key)
@@ -128,7 +135,7 @@ final class Http4sConsulClient[F[_]](
               .+??("dc", datacenter)
               .+??("separator", separator)
               .+??("index", index)
-              .+??("wait", wait.map(Interval.toString)))))
+              .+??("wait", wait.map(Interval.toString))))
       response <- client.fetch[QueryResponse[List[KVGetResult]]](req) { response: Response[F] =>
         response.status match {
           case status@(Status.Ok|Status.NotFound) =>
@@ -155,13 +162,13 @@ final class Http4sConsulClient[F[_]](
   ): F[QueryResponse[Option[Array[Byte]]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching consul key $key"))
-      req = addCreds(addConsulToken(
+      req = addHeaders(
         Request(
           uri =
             (baseUri / "v1" / "kv" / key)
               .+?("raw")
               .+??("index", index)
-              .+??("wait", wait.map(Interval.toString)))))
+              .+??("wait", wait.map(Interval.toString))))
       response <- client.fetch[QueryResponse[Option[Array[Byte]]]](req) { response: Response[F] =>
         response.status match {
           case status@(Status.Ok|Status.NotFound) =>
@@ -189,12 +196,12 @@ final class Http4sConsulClient[F[_]](
   def kvSet(key: Key, value: Array[Byte]): F[Unit] =
     for {
       _ <- F.delay(log.debug(s"setting consul key $key to $value"))
-      req <- PUT(uri = baseUri / "v1" / "kv" / key, value).map(addConsulToken).map(addCreds)
+      req <- PUT(uri = baseUri / "v1" / "kv" / key, value).map(addHeaders)
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"setting consul key $key resulted in response $response")
 
   def kvList(prefix: Key): F[Set[Key]] = {
-    val req = addCreds(addConsulToken(Request(uri = (baseUri / "v1" / "kv" / prefix).withQueryParam(QueryParam.fromKey("keys")))))
+    val req = addHeaders(Request(uri = (baseUri / "v1" / "kv" / prefix).withQueryParam(QueryParam.fromKey("keys"))))
 
     for {
       _ <- F.delay(log.debug(s"listing key consul with the prefix: $prefix"))
@@ -206,7 +213,7 @@ final class Http4sConsulClient[F[_]](
   }
 
   def kvDelete(key: Key): F[Unit] = {
-    val req = addCreds(addConsulToken(Request(Method.DELETE, uri = (baseUri / "v1" / "kv" / key))))
+    val req = addHeaders(Request(Method.DELETE, uri = (baseUri / "v1" / "kv" / key)))
 
     for {
       _ <- F.delay(log.debug(s"deleting $key from the consul KV store"))
@@ -224,7 +231,7 @@ final class Http4sConsulClient[F[_]](
   ): F[QueryResponse[List[HealthCheckResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching health checks for service $service"))
-      req = addCreds(addConsulToken(
+      req = addHeaders(
         Request(
           uri =
             (baseUri / "v1" / "health" / "checks" / service)
@@ -232,7 +239,7 @@ final class Http4sConsulClient[F[_]](
               .+??("near", near)
               .+??("node-meta", nodeMeta)
               .+??("index", index)
-              .+??("wait", wait.map(Interval.toString)))))
+              .+??("wait", wait.map(Interval.toString))))
       response <- client.fetch[QueryResponse[List[HealthCheckResponse]]](req)(extractQueryResponse)
     } yield {
       log.debug(s"health check response: " + response)
@@ -248,13 +255,13 @@ final class Http4sConsulClient[F[_]](
   ): F[QueryResponse[List[HealthCheckResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching health checks for node $node"))
-      req = addCreds(addConsulToken(
+      req = addHeaders(
         Request(
           uri =
             (baseUri / "v1" / "health" / "node" / node)
               .+??("dc", datacenter)
               .+??("index", index)
-              .+??("wait", wait.map(Interval.toString)))))
+              .+??("wait", wait.map(Interval.toString))))
       response <- client.fetch[QueryResponse[List[HealthCheckResponse]]](req)(extractQueryResponse)
     } yield {
       log.debug(s"health checks for node response: $response")
@@ -272,7 +279,7 @@ final class Http4sConsulClient[F[_]](
   ): F[QueryResponse[List[HealthCheckResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching health checks for service ${HealthStatus.toString(state)}"))
-      req = addCreds(addConsulToken(
+      req = addHeaders(
         Request(
           uri =
             (baseUri / "v1" / "health" / "state" / HealthStatus.toString(state))
@@ -280,7 +287,7 @@ final class Http4sConsulClient[F[_]](
               .+??("near", near)
               .+??("node-meta", nodeMeta)
               .+??("index", index)
-              .+??("wait", wait.map(Interval.toString)))))
+              .+??("wait", wait.map(Interval.toString))))
       response <- client.fetch[QueryResponse[List[HealthCheckResponse]]](req)(extractQueryResponse)
     } yield {
       log.debug(s"health checks in state response: $response")
@@ -300,7 +307,7 @@ final class Http4sConsulClient[F[_]](
   ): F[QueryResponse[List[HealthNodesForServiceResponse]]] = {
     for {
       _ <- F.delay(log.debug(s"fetching nodes for service $service from health API"))
-      req = addCreds(addConsulToken(
+      req = addHeaders(
         Request(
           uri =
             (baseUri / "v1" / "health" / "service" / service)
@@ -310,7 +317,7 @@ final class Http4sConsulClient[F[_]](
               .+??("tag", tag)
               .+??("passing", passingOnly.filter(identity)) // all values of passing parameter are treated the same by Consul
               .+??("index", index)
-              .+??("wait", wait.map(Interval.toString)))))
+              .+??("wait", wait.map(Interval.toString))))
 
       response <- client.fetch[QueryResponse[List[HealthNodesForServiceResponse]]](req)(extractQueryResponse)
     } yield {
@@ -342,13 +349,13 @@ final class Http4sConsulClient[F[_]](
 
     for {
       _ <- F.delay(log.debug(s"registering $service with json: ${json.toString}"))
-      req <- PUT(baseUri / "v1" / "agent" / "service" / "register", json).map(addConsulToken).map(addCreds)
+      req <- PUT(baseUri / "v1" / "agent" / "service" / "register", json).map(addHeaders)
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"registering service $service resulted in response $response")
   }
 
   def agentDeregisterService(id: String): F[Unit] = {
-    val req = addCreds(addConsulToken(Request(Method.PUT, uri = (baseUri / "v1" / "agent" / "service" / "deregister" / id))))
+    val req = addHeaders(Request(Method.PUT, uri = (baseUri / "v1" / "agent" / "service" / "deregister" / id)))
     for {
       _ <- F.delay(log.debug(s"deregistering service with id $id"))
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
@@ -358,7 +365,7 @@ final class Http4sConsulClient[F[_]](
   def agentListServices(): F[Map[String, ServiceResponse]] = {
     for {
       _ <- F.delay(log.debug(s"listing services registered with local agent"))
-      req = addCreds(addConsulToken(Request(uri = (baseUri / "v1" / "agent" / "services"))))
+      req = addHeaders(Request(uri = (baseUri / "v1" / "agent" / "services")))
       services <- client.expectOr[Map[String, ServiceResponse]](req)(handleConsulErrorResponse)
     } yield {
       log.debug(s"got services: $services")
@@ -369,9 +376,9 @@ final class Http4sConsulClient[F[_]](
   def agentEnableMaintenanceMode(id: String, enable: Boolean, reason: Option[String]): F[Unit] = {
     for {
       _ <- F.delay(log.debug(s"setting service with id $id maintenance mode to $enable"))
-      req = addCreds(addConsulToken(
+      req = addHeaders(
         Request(Method.PUT,
-          uri = (baseUri / "v1" / "agent" / "service" / "maintenance" / id).+?("enable", enable).+??("reason", reason))))
+          uri = (baseUri / "v1" / "agent" / "service" / "maintenance" / id).+?("enable", enable).+??("reason", reason)))
       response  <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"setting maintenance mode for service $id to $enable resulted in $response")
   }
