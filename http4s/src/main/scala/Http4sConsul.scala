@@ -23,7 +23,8 @@ final class Http4sConsulClient[F[_]](
   baseUri: Uri,
   client: Client[F],
   accessToken: Option[String] = None,
-  credentials: Option[(String,String)] = None)
+  credentials: Option[(String,String)] = None,
+  setKeepAlive: Boolean = false)
   (implicit F: Effect[F]) extends (ConsulOp ~> F) {
 
   private[this] val dsl = new Http4sClientDsl[F]{}
@@ -67,8 +68,13 @@ final class Http4sConsulClient[F[_]](
   private def addCreds(req: Request[F]): Request[F] =
     credentials.fold(req){case (un,pw) => req.putHeaders(Authorization(BasicCredentials(un,pw)))}
 
-  private def addKeepAlive(req: Request[F]): Request[F] =
-    req.putHeaders(Connection(NonEmptyList.of(CaseInsensitiveString("keep-alive"))))
+  private def addKeepAlive(req: Request[F]): Request[F] = {
+    if (setKeepAlive) {
+      req.putHeaders(Connection(NonEmptyList.of(CaseInsensitiveString("keep-alive"))))
+    } else {
+      req
+    }
+  }
 
   private val addHeaders: Request[F] => Request[F] =
     addConsulToken _ andThen addCreds _ andThen addKeepAlive _
