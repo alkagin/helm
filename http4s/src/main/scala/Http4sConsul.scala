@@ -14,8 +14,7 @@ import org.http4s._
 import org.http4s.argonaut._
 import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.headers.{Authorization, Connection}
-import org.http4s.util.CaseInsensitiveString
+import org.http4s.headers.Authorization
 import org.http4s.Status.Successful
 import org.http4s.syntax.string.http4sStringSyntax
 
@@ -23,8 +22,7 @@ final class Http4sConsulClient[F[_]](
   baseUri: Uri,
   client: Client[F],
   accessToken: Option[String] = None,
-  credentials: Option[(String,String)] = None,
-  setKeepAlive: Boolean = false)
+  credentials: Option[(String,String)] = None)
   (implicit F: Effect[F]) extends (ConsulOp ~> F) {
 
   private[this] val dsl = new Http4sClientDsl[F]{}
@@ -68,16 +66,8 @@ final class Http4sConsulClient[F[_]](
   private def addCreds(req: Request[F]): Request[F] =
     credentials.fold(req){case (un,pw) => req.putHeaders(Authorization(BasicCredentials(un,pw)))}
 
-  private def addKeepAlive(req: Request[F]): Request[F] = {
-    if (setKeepAlive) {
-      req.putHeaders(Connection(NonEmptyList.of(CaseInsensitiveString("keep-alive"))))
-    } else {
-      req
-    }
-  }
-
   private val addHeaders: Request[F] => Request[F] =
-    addConsulToken _ andThen addCreds _ andThen addKeepAlive _
+    addConsulToken _ andThen addCreds _
 
   /** A nice place to store the Consul response headers so we can pass them around */
   private case class ConsulHeaders(
@@ -202,7 +192,7 @@ final class Http4sConsulClient[F[_]](
   def kvSet(key: Key, value: Array[Byte]): F[Unit] =
     for {
       _ <- F.delay(log.debug(s"setting consul key $key to $value"))
-      req <- PUT(uri = baseUri / "v1" / "kv" / key, value).map(addHeaders)
+      req <- PUT(value, baseUri / "v1" / "kv" / key).map(addHeaders)
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"setting consul key $key resulted in response $response")
 
@@ -355,7 +345,7 @@ final class Http4sConsulClient[F[_]](
 
     for {
       _ <- F.delay(log.debug(s"registering $service with json: ${json.toString}"))
-      req <- PUT(baseUri / "v1" / "agent" / "service" / "register", json).map(addHeaders)
+      req <- PUT(json, baseUri / "v1" / "agent" / "service" / "register").map(addHeaders)
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"registering service $service resulted in response $response")
   }

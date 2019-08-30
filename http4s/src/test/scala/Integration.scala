@@ -1,6 +1,7 @@
 package helm
 package http4s
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 import cats.effect.IO
 import cats.implicits._
@@ -42,12 +43,19 @@ class IntegrationSpec
     with Matchers
     with Checkers
     with BeforeAndAfterAll
-    with DockerConsulService with DockerTestKit {
-
-  val client = Http1Client[IO]().unsafeRunSync
+    with DockerConsulService
+    with DockerTestKit {
 
   val baseUrl: Uri =
     Uri.fromString(s"http://${dockerExecutor.host}:${ConsulPort}").valueOr(throw _)
+
+  val ec = ExecutionContext.global
+  implicit val contextShift = IO.contextShift(ec)
+  import IO.ioConcurrentEffect
+
+  // Tests are executed later so we cannot wrap the helm.run calls in a resource.use(), lest the resources be freed before the Http4sConsulClient is called
+  // so... this is not a great example of how to use this code in the real world
+  val client = BlazeClientBuilder[IO](ec).resource.allocated.unsafeRunSync()._1
 
   val interpreter = new Http4sConsulClient(baseUrl, client)
 

@@ -2,8 +2,7 @@ package helm
 package http4s
 
 import cats.~>
-import cats.data.Kleisli
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import fs2.{Chunk, Stream}
 import org.http4s.{EntityBody, Header, Headers, Request, Response, Status, Uri}
 import org.http4s.client._
@@ -235,8 +234,7 @@ object Http4sConsulTests {
   }
 
   def constantResponseClient(response: Response[IO]): Client[IO] = {
-    val dispResponse = DisposableResponse(response, IO.unit)
-    Client(Kleisli{req => IO.pure(dispResponse)}, IO.unit)
+    Client(req => Resource.liftF(IO.pure(response)))
   }
 
   def body(s: String): EntityBody[IO] =
