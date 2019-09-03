@@ -11,7 +11,7 @@ import cats.implicits._
 import journal.Logger
 import org.http4s.Method.PUT
 import org.http4s._
-import org.http4s.argonaut._
+import argonaut._
 import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
@@ -30,6 +30,7 @@ final class Http4sConsulClient[F[_]](
 
   private implicit val keysDecoder: EntityDecoder[F, List[String]] = jsonOf[F, List[String]]
   private implicit val listKvGetResultDecoder: EntityDecoder[F, List[KVGetResult]] = jsonOf[F, List[KVGetResult]]
+  private implicit val sessionCreateResultDecoder: EntityDecoder[F, SessionCreateResult] = jsonOf[F, SessionCreateResult]
   private implicit val listServicesDecoder: EntityDecoder[F, Map[String, ServiceResponse]] = jsonOf[F, Map[String, ServiceResponse]]
   private implicit val listHealthChecksDecoder: EntityDecoder[F, List[HealthCheckResponse]] = jsonOf[F, List[HealthCheckResponse]]
   private implicit val listHealthNodesForServiceResponseDecoder: EntityDecoder[F, List[HealthNodesForServiceResponse]] =
@@ -38,6 +39,8 @@ final class Http4sConsulClient[F[_]](
   private val log = Logger[this.type]
 
   def apply[A](op: ConsulOp[A]): F[A] = op match {
+    case ConsulOp.SessionCreate(datacenter, lockDelay, node, name, checks, behavior, ttl) =>
+      sessionCreate(datacenter, lockDelay, node, name, checks, behavior, ttl)
     case ConsulOp.KVGet(key, recurse, datacenter, separator, index, wait) =>
       kvGet(key, recurse, datacenter, separator, index, wait)
     case ConsulOp.KVGetRaw(key, index, wait) => kvGetRaw(key, index, wait)
@@ -110,7 +113,38 @@ final class Http4sConsulClient[F[_]](
   }
 
   private def handleConsulErrorResponse(response: Response[F]): F[Throwable] = {
+    Console.println(response)
     response.as[String].map(errorMsg => new RuntimeException("Got error response from Consul: " + errorMsg))
+  }
+
+
+  def sessionCreate(
+    datacenter: Option[String],
+    lockDelay:  Option[String],
+    node:       Option[String],
+    name:       Option[String],
+    checks:     Option[NonEmptyList[String]],
+    behavior:   Option[Behavior],
+    ttl:        Option[Interval]
+  ): F[SessionCreateResult] = {
+
+    val json: Json =
+      ("LockDelay"                 :=? lockDelay)              ->?:
+        ("Node"                      :=? node)                 ->?:
+        ("Name"                      :=? name)                 ->?:
+        ("Checks"                    :=? checks.map(_.toList)) ->?:
+        ("Behavior"                  :=? behavior)             ->?:
+        ("TTL"                       :=? ttl)                  ->?:
+        jEmptyObject
+
+    for {
+      _ <- F.delay(log.debug(s"creating session with json: ${json.toString}"))
+      req <- PUT(json, (baseUri / "v1" / "session" / "create").+??("dc", datacenter)).map(addHeaders)
+      response <- client.expectOr[SessionCreateResult](req)(handleConsulErrorResponse)
+    } yield {
+      log.debug(s"creating session resulted in consul response $response")
+      response
+    }
   }
 
   def kvGet(
