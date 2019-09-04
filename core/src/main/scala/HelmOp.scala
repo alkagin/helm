@@ -35,7 +35,7 @@ object ConsulOp {
     maxWait: Option[Interval]
   ) extends ConsulOp[QueryResponse[Option[Array[Byte]]]]
 
-  final case class KVSet(key: Key, value: Array[Byte]) extends ConsulOp[Unit]
+  final case class KVSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]) extends ConsulOp[Unit]
 
   final case class KVDelete(key: Key) extends ConsulOp[Unit]
 
@@ -139,11 +139,11 @@ object ConsulOp {
       }
     }
 
-  def kvSet(key: Key, value: Array[Byte]): ConsulOpF[Unit] =
-    liftF(KVSet(key, value))
+  def kvSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]): ConsulOpF[Unit] =
+    liftF(KVSet(key, value, acquire, release))
 
-  def kvSetJson[A](key: Key, value: A)(implicit A: EncodeJson[A]): ConsulOpF[Unit] =
-    kvSet(key, A.encode(value).toString.getBytes("UTF-8"))
+  def kvSetJson[A](key: Key, value: A, acquire: Option[String], release: Option[String])(implicit A: EncodeJson[A]): ConsulOpF[Unit] =
+    kvSet(key, A.encode(value).toString.getBytes("UTF-8"), acquire, release)
 
   def kvDelete(key: Key): ConsulOpF[Unit] =
     liftF(KVDelete(key))

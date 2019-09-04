@@ -44,7 +44,7 @@ final class Http4sConsulClient[F[_]](
     case ConsulOp.KVGet(key, recurse, datacenter, separator, index, wait) =>
       kvGet(key, recurse, datacenter, separator, index, wait)
     case ConsulOp.KVGetRaw(key, index, wait) => kvGetRaw(key, index, wait)
-    case ConsulOp.KVSet(key, value)  => kvSet(key, value)
+    case ConsulOp.KVSet(key, value, acquire, release) => kvSet(key, value, acquire, release)
     case ConsulOp.KVListKeys(prefix) => kvList(prefix)
     case ConsulOp.KVDelete(key)      => kvDelete(key)
     case ConsulOp.HealthListChecksForService(service, datacenter, near, nodeMeta, index, wait) =>
@@ -223,10 +223,10 @@ final class Http4sConsulClient[F[_]](
     }
   }
 
-  def kvSet(key: Key, value: Array[Byte]): F[Unit] =
+  def kvSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]): F[Unit] =
     for {
       _ <- F.delay(log.debug(s"setting consul key $key to $value"))
-      req <- PUT(value, baseUri / "v1" / "kv" / key).map(addHeaders)
+      req <- PUT(value, (baseUri / "v1" / "kv" / key).+??("acquire", acquire).+??("release", release)).map(addHeaders)
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"setting consul key $key resulted in response $response")
 

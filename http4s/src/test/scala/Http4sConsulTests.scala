@@ -66,14 +66,14 @@ class Http4sConsulTests extends FlatSpec with Matchers with TypeCheckedTripleEqu
   "kvSet" should "succeed when the response is 200" in {
     val response = consulResponse(Status.Ok, "yay")
     val csl = constantConsul(response)
-    helm.run(csl, ConsulOp.kvSet("foo", "bar".getBytes)).attempt.unsafeRunSync should ===(
+    helm.run(csl, ConsulOp.kvSet("foo", "bar".getBytes, None, None)).attempt.unsafeRunSync should ===(
       Right(()))
   }
 
   it should "fail when the response is 500" in {
     val response = consulResponse(Status.InternalServerError, "error")
     val csl = constantConsul(response)
-    helm.run(csl, ConsulOp.kvSet("foo", "bar".getBytes)).attempt.unsafeRunSync should be (consulErrorException)
+    helm.run(csl, ConsulOp.kvSet("foo", "bar".getBytes, None, None)).attempt.unsafeRunSync should be (consulErrorException)
   }
 
   "healthListChecksForNode" should "succeed with the proper result when the response is 200" in {
