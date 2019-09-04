@@ -1,5 +1,7 @@
 package helm
 
+import java.util.UUID
+
 import scala.collection.immutable.{Set => SSet}
 import argonaut.{DecodeJson, EncodeJson, StringWrap}, StringWrap.StringToParseWrap
 import cats.data.NonEmptyList
@@ -20,6 +22,8 @@ object ConsulOp {
     ttl:        Option[Interval]
   ) extends ConsulOp[SessionCreateResult]
 
+  final case class SessionDestroy(uuid: UUID) extends ConsulOp[Unit]
+
   final case class KVGet(
     key:        Key,
     recurse:    Option[Boolean],
@@ -35,7 +39,7 @@ object ConsulOp {
     maxWait: Option[Interval]
   ) extends ConsulOp[QueryResponse[Option[Array[Byte]]]]
 
-  final case class KVSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]) extends ConsulOp[Unit]
+  final case class KVSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]) extends ConsulOp[Boolean]
 
   final case class KVDelete(key: Key) extends ConsulOp[Unit]
 
@@ -108,6 +112,9 @@ object ConsulOp {
   ): ConsulOpF[SessionCreateResult] =
     liftF(SessionCreate(datacenter, lockDelay, node, name, checks, behavior, ttl))
 
+  def sessionDestroy(uuid: UUID) =
+    liftF(SessionDestroy(uuid))
+
   def kvGet(
     key:        Key,
     recurse:    Option[Boolean],
@@ -139,10 +146,10 @@ object ConsulOp {
       }
     }
 
-  def kvSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]): ConsulOpF[Unit] =
+  def kvSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]): ConsulOpF[Boolean] =
     liftF(KVSet(key, value, acquire, release))
 
-  def kvSetJson[A](key: Key, value: A, acquire: Option[String], release: Option[String])(implicit A: EncodeJson[A]): ConsulOpF[Unit] =
+  def kvSetJson[A](key: Key, value: A, acquire: Option[String], release: Option[String])(implicit A: EncodeJson[A]): ConsulOpF[Boolean] =
     kvSet(key, A.encode(value).toString.getBytes("UTF-8"), acquire, release)
 
   def kvDelete(key: Key): ConsulOpF[Unit] =

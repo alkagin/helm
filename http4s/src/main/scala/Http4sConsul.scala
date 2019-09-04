@@ -1,6 +1,8 @@
 package helm
 package http4s
 
+import java.util.UUID
+
 import argonaut.Json
 import argonaut.Json.jEmptyObject
 import argonaut.StringWrap.StringToStringWrap
@@ -41,6 +43,8 @@ final class Http4sConsulClient[F[_]](
   def apply[A](op: ConsulOp[A]): F[A] = op match {
     case ConsulOp.SessionCreate(datacenter, lockDelay, node, name, checks, behavior, ttl) =>
       sessionCreate(datacenter, lockDelay, node, name, checks, behavior, ttl)
+    case ConsulOp.SessionDestroy(uuid: UUID) =>
+      sessionDestroy(uuid)
     case ConsulOp.KVGet(key, recurse, datacenter, separator, index, wait) =>
       kvGet(key, recurse, datacenter, separator, index, wait)
     case ConsulOp.KVGetRaw(key, index, wait) => kvGetRaw(key, index, wait)
@@ -138,14 +142,21 @@ final class Http4sConsulClient[F[_]](
         jEmptyObject
 
     for {
-      _ <- F.delay(log.debug(s"creating session with json: ${json.toString}"))
-      req <- PUT(json, (baseUri / "v1" / "session" / "create").+??("dc", datacenter)).map(addHeaders)
+      _        <- F.delay(log.debug(s"creating session with json: ${json.toString}"))
+      req      <- PUT(json, (baseUri / "v1" / "session" / "create").+??("dc", datacenter)).map(addHeaders)
       response <- client.expectOr[SessionCreateResult](req)(handleConsulErrorResponse)
     } yield {
       log.debug(s"creating session resulted in consul response $response")
       response
     }
   }
+
+  def sessionDestroy(uuid: UUID): F[Unit] =
+    for {
+      _        <- F.delay(log.debug(s"destroying $uuid session"))
+      req      =  addHeaders(Request(uri = (baseUri / "v1" / "session" / "destroy" / uuid.show)))
+      response <- client.expectOr[String](req)(handleConsulErrorResponse)
+    } yield log.debug(s"response from delete: $response")
 
   def kvGet(
     key:        Key,
@@ -223,12 +234,16 @@ final class Http4sConsulClient[F[_]](
     }
   }
 
-  def kvSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]): F[Unit] =
+  def kvSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]): F[Boolean] =
     for {
       _ <- F.delay(log.debug(s"setting consul key $key to $value"))
       req <- PUT(value, (baseUri / "v1" / "kv" / key).+??("acquire", acquire).+??("release", release)).map(addHeaders)
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
-    } yield log.debug(s"setting consul key $key resulted in response $response")
+      bool <- F.delay(java.lang.Boolean.valueOf(response))
+    } yield {
+      log.debug(s"setting consul key $key resulted in response $response")
+      bool
+    }
 
   def kvList(prefix: Key): F[Set[Key]] = {
     val req = addHeaders(Request(uri = (baseUri / "v1" / "kv" / prefix).withQueryParam(QueryParam.fromKey("keys"))))
