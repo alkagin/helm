@@ -12,18 +12,6 @@ sealed abstract class ConsulOp[A] extends Product with Serializable
 
 object ConsulOp {
 
-  final case class SessionCreate(
-    datacenter: Option[String],
-    lockDelay:  Option[String],
-    node:       Option[String],
-    name:       Option[String],
-    checks:     Option[NonEmptyList[String]],
-    behavior:   Option[Behavior],
-    ttl:        Option[Interval]
-  ) extends ConsulOp[SessionCreateResult]
-
-  final case class SessionDestroy(uuid: UUID) extends ConsulOp[Unit]
-
   final case class KVGet(
     key:        Key,
     recurse:    Option[Boolean],
@@ -99,9 +87,7 @@ object ConsulOp {
 
   final case class AgentEnableMaintenanceMode(id: String, enable: Boolean, reason: Option[String]) extends ConsulOp[Unit]
 
-  type ConsulOpF[A] = Free[ConsulOp, A]
-
-  def sessionCreate(
+  final case class SessionCreate(
     datacenter: Option[String],
     lockDelay:  Option[String],
     node:       Option[String],
@@ -109,11 +95,13 @@ object ConsulOp {
     checks:     Option[NonEmptyList[String]],
     behavior:   Option[Behavior],
     ttl:        Option[Interval]
-  ): ConsulOpF[SessionCreateResult] =
-    liftF(SessionCreate(datacenter, lockDelay, node, name, checks, behavior, ttl))
+  ) extends ConsulOp[SessionCreateResponse]
 
-  def sessionDestroy(uuid: UUID) =
-    liftF(SessionDestroy(uuid))
+  final case class SessionDestroy(uuid: UUID) extends ConsulOp[Unit]
+
+  final case class SessionInfo(uuid: UUID) extends ConsulOp[QueryResponse[List[SessionInfoResponse]]]
+
+  type ConsulOpF[A] = Free[ConsulOp, A]
 
   def kvGet(
     key:        Key,
@@ -218,4 +206,21 @@ object ConsulOp {
 
   def agentEnableMaintenanceMode(id: String, enable: Boolean, reason: Option[String]): ConsulOpF[Unit] =
     liftF(AgentEnableMaintenanceMode(id, enable, reason))
+
+  def sessionCreate(
+    datacenter: Option[String],
+    lockDelay:  Option[String],
+    node:       Option[String],
+    name:       Option[String],
+    checks:     Option[NonEmptyList[String]],
+    behavior:   Option[Behavior],
+    ttl:        Option[Interval]
+  ): ConsulOpF[SessionCreateResponse] =
+    liftF(SessionCreate(datacenter, lockDelay, node, name, checks, behavior, ttl))
+
+  def sessionDestroy(uuid: UUID): ConsulOpF[Unit] =
+    liftF(SessionDestroy(uuid))
+
+  def sessionInfo(uuid: UUID): ConsulOpF[QueryResponse[List[SessionInfoResponse]]] =
+    liftF(SessionInfo(uuid))
 }

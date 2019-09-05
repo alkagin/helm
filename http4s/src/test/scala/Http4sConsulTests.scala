@@ -1,6 +1,8 @@
 package helm
 package http4s
 
+import java.util.UUID
+
 import cats.~>
 import cats.effect.{IO, Resource}
 import fs2.{Chunk, Stream}
@@ -10,6 +12,7 @@ import org.scalactic.TypeCheckedTripleEquals
 import org.scalatest._
 import org.scalatest.matchers.{BeMatcher, MatchResult}
 import org.http4s.syntax.string.http4sStringSyntax
+
 import scala.reflect.ClassTag
 
 class Http4sConsulTests extends FlatSpec with Matchers with TypeCheckedTripleEquals {
@@ -207,6 +210,46 @@ class Http4sConsulTests extends FlatSpec with Matchers with TypeCheckedTripleEqu
     val response = consulResponse(Status.InternalServerError, "error")
     val csl = constantConsul(response)
     helm.run(csl, ConsulOp.agentListServices).attempt.unsafeRunSync should be (consulErrorException)
+  }
+
+  "sessionCreate" should "succeed when the response is 200" in {
+    val response = consulResponse(Status.Ok, sessionCreateReplyJson)
+    val csl = constantConsul(response)
+    helm.run(csl, ConsulOp.sessionCreate(None, None, None, None, None, None, None)).attempt.unsafeRunSync() should ===(
+      Right(SessionCreateResponse(UUID.fromString("348f2ad5-1f9b-b4f3-24c1-2c88a02bddc7")))
+    )
+  }
+
+  it should "fail when the response is 500" in {
+    val response = consulResponse(Status.InternalServerError, "error")
+    val csl = constantConsul(response)
+    helm.run(csl, ConsulOp.sessionCreate(None, None, None, None, None, None, None)).attempt.unsafeRunSync should be (consulErrorException)
+  }
+
+  "sessionDestroy" should "succeed when the response is 200" in {
+    val response = consulResponse(Status.Ok, "true")
+    val csl = constantConsul(response)
+    helm.run(csl, ConsulOp.sessionDestroy(UUID.randomUUID())).attempt.unsafeRunSync() should ===(
+      Right(()))
+  }
+
+  it should "fail when the response is 500" in {
+    val response = consulResponse(Status.InternalServerError, "error")
+    val csl = constantConsul(response)
+    helm.run(csl, ConsulOp.sessionDestroy(UUID.randomUUID())).attempt.unsafeRunSync() should be (consulErrorException)
+  }
+
+  "sessionInfo" should "succeed when the response is 200" in {
+    val response = consulResponse(Status.Ok, sessionInfoReplyJson, consulHeaders(345, true, 1))
+    val csl = constantConsul(response)
+    helm.run(csl, ConsulOp.sessionInfo(UUID.fromString("adf4238a-882b-9ddc-4a9d-5b6758e4159e"))).attempt.unsafeRunSync() should ===(
+      Right(sessionInfoReturnValue))
+  }
+
+  it should "fail when the response is 500" in {
+    val response = consulResponse(Status.InternalServerError, "error")
+    val csl = constantConsul(response)
+    helm.run(csl, ConsulOp.sessionInfo(UUID.randomUUID())).attempt.unsafeRunSync() should be (consulErrorException)
   }
 }
 
@@ -539,6 +582,36 @@ object Http4sConsulTests {
       1234,
       true,
       0
+    )
+
+  val sessionCreateReplyJson = """{"ID":"348f2ad5-1f9b-b4f3-24c1-2c88a02bddc7"}"""
+
+  val sessionInfoReplyJson = """
+   [
+      {
+        "ID": "adf4238a-882b-9ddc-4a9d-5b6758e4159e",
+        "Name": "test-session",
+        "Node": "raja-laptop-02",
+        "Checks": [
+          "serfHealth"
+        ],
+        "LockDelay": 1,
+        "Behavior": "release",
+        "TTL": "30s",
+        "CreateIndex": 1086449,
+        "ModifyIndex": 1086449
+      }
+   ]
+  """
+
+  val sessionInfoReturnValue =
+    QueryResponse(
+      List(
+        SessionInfoResponse(UUID.fromString("adf4238a-882b-9ddc-4a9d-5b6758e4159e"), Some("test-session"), "raja-laptop-02",  List("serfHealth"), 1L, Behavior.Release, Some("30s"), 1086449L, 1086449L)
+      ),
+      345,
+      true,
+      1
     )
 
   // Some custom matchers here because ScalaTest's built-in matching doesn't handle Left(Throwable) well.
