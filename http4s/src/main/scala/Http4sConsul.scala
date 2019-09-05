@@ -154,7 +154,7 @@ final class Http4sConsulClient[F[_]](
   def sessionDestroy(uuid: UUID): F[Unit] =
     for {
       _        <- F.delay(log.debug(s"destroying $uuid session"))
-      req      =  addHeaders(Request(uri = (baseUri / "v1" / "session" / "destroy" / uuid.show)))
+      req      =  addHeaders(Request(Method.PUT, uri = (baseUri / "v1" / "session" / "destroy" / uuid.show)))
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
     } yield log.debug(s"response from delete: $response")
 
