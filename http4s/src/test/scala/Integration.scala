@@ -60,7 +60,7 @@ class IntegrationSpec
   val interpreter = new Http4sConsulClient(baseUrl, client)
 
   "consul" should "work" in check { (k: String, v: Array[Byte]) =>
-    helm.run(interpreter, ConsulOp.kvSet(k, v, None, None)).unsafeRunSync
+    helm.run(interpreter, ConsulOp.kvSet(k, v, None)).unsafeRunSync
     // Equality comparison for Option[Array[Byte]] doesn't work properly. Since we expect the value to always be Some making a custom matcher doesn't seem worthwhile, so call .get on the Option
     // See https://github.com/scalatest/scalatest/issues/491
     helm.run(interpreter, ConsulOp.kvGetRaw(k, None, None)).unsafeRunSync.value.get should be (v)

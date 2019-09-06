@@ -33,6 +33,6 @@ object Behavior {
       }
     }
 
-  implicit val HealthStatusEncoder: EncodeJson[Behavior] =
+  implicit val BehaviorEncoder: EncodeJson[Behavior] =
     EncodeJson[Behavior] { hs => jString(toString(hs)) }
 }

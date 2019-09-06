@@ -49,7 +49,7 @@ final class Http4sConsulClient[F[_]](
     case ConsulOp.KVGet(key, recurse, datacenter, separator, index, wait) =>
       kvGet(key, recurse, datacenter, separator, index, wait)
     case ConsulOp.KVGetRaw(key, index, wait) => kvGetRaw(key, index, wait)
-    case ConsulOp.KVSet(key, value, acquire, release) => kvSet(key, value, acquire, release)
+    case ConsulOp.KVSet(key, value, lockOperation) => kvSet(key, value, lockOperation)
     case ConsulOp.KVListKeys(prefix) => kvList(prefix)
     case ConsulOp.KVDelete(key)      => kvDelete(key)
     case ConsulOp.HealthListChecksForService(service, datacenter, near, nodeMeta, index, wait) =>
@@ -77,6 +77,8 @@ final class Http4sConsulClient[F[_]](
   private val addHeaders: Request[F] => Request[F] =
     addConsulToken _ andThen addCreds _
 
+  private def addLockOperation(uri: Uri, lockOperation: Option[LockOperation]) =
+    lockOperation.fold(uri)( op => uri.+?(LockOperation.LockOperationType.toString(op.operation), op.id.show))
   /** A nice place to store the Consul response headers so we can pass them around */
   private case class ConsulHeaders(
     index:       Long,
@@ -118,7 +120,6 @@ final class Http4sConsulClient[F[_]](
   }
 
   private def handleConsulErrorResponse(response: Response[F]): F[Throwable] = {
-    Console.println(response)
     response.as[String].map(errorMsg => new RuntimeException("Got error response from Consul: " + errorMsg))
   }
 
@@ -198,10 +199,10 @@ final class Http4sConsulClient[F[_]](
     }
   }
 
-  def kvSet(key: Key, value: Array[Byte], acquire: Option[String], release: Option[String]): F[Boolean] =
+  def kvSet(key: Key, value: Array[Byte], lockOperation: Option[LockOperation]): F[Boolean] =
     for {
       _ <- F.delay(log.debug(s"setting consul key $key to $value"))
-      req <- PUT(value, (baseUri / "v1" / "kv" / key).+??("acquire", acquire).+??("release", release)).map(addHeaders)
+      req <- PUT(value, addLockOperation(baseUri / "v1" / "kv" / key, lockOperation)).map(addHeaders)
       response <- client.expectOr[String](req)(handleConsulErrorResponse)
       bool <- F.delay(java.lang.Boolean.valueOf(response))
     } yield {
